@@ -6,6 +6,7 @@ A plotting library for Common Lisp that prints plots on the REPL using Unicode b
 lisp
 (plot '((1 2) (2 6) (3 4)) :title "Cool plot")
 =>
+<pre>
       Cool plot
 6⡏⠉⠉⠉⠉⠉⠉⠉⠉⣹⠛⢍⠉⠉⠉⠉⠉⠉⠉⢹
  ⡇⠀⠀⠀⠀⠀⠀⠀⣰⠃⠀⠀⠑⢄⠀⠀⠀⠀⠀⢸
@@ -18,7 +19,7 @@ lisp
  ⡇⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
 2⣷⣃⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣸
  1                  3
-
+</pre>
 
 #### Plotting Functions
 ```lisp
