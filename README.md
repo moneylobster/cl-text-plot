@@ -8,7 +8,7 @@ For some reason the plots don't show up nicely on Github's markdown renderer, so
 (plot '((1 2) (2 6) (3 4)) :title "Cool plot")
 =>
 
-      Cool plot
+          Cool plot
 6⡏⠉⠉⠉⠉⠉⠉⠉⠉⣹⠛⢍⠉⠉⠉⠉⠉⠉⠉⢹
  ⡇⠀⠀⠀⠀⠀⠀⠀ ⣰⠃⠀ ⠀⠑⢄ ⠀⠀⠀⠀⠀⢸
  ⡇⠀⠀⠀⠀⠀⠀ ⣰⠃⠀⠀  ⠀⠀⠀⠑⢄⠀⠀⠀⢸
