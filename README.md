@@ -65,4 +65,4 @@ For some reason the plots don't show up nicely on Github's markdown renderer, so
 * histograms and bar charts
 
 ### Acknowledgement
-Inspired by [https://github.com/JuliaPlots/UnicodePlots.jl](UnicodePlots.jl).
+Inspired by [UnicodePlots.jl](https://github.com/JuliaPlots/UnicodePlots.jl).
