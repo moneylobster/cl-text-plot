@@ -3,7 +3,7 @@ A plotting library for Common Lisp that prints plots on the REPL using Unicode b
 
 ### Usage
 #### Normal Plotting
-```lisp
+lisp
 (plot '((1 2) (2 6) (3 4)) :title "Cool plot")
 =>
       Cool plot
@@ -18,8 +18,8 @@ A plotting library for Common Lisp that prints plots on the REPL using Unicode b
  ⡇⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
 2⣷⣃⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣸
  1                  3
- ```
- 
+
+
 #### Plotting Functions
 ```lisp
 (plot-fun #'sin -4 4 0.1)
