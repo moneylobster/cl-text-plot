@@ -1,5 +1,14 @@
 ;;;; implements a unicode canvas and plotting
 
+(defpackage :textplot
+			(:use :common-lisp)
+			(:export
+			 #:plot
+			 #:plot-fun
+			 #:scatter))
+
+(in-package :textplot)
+
 (proclaim '(inline
 			add-braille
 			sub-braille
@@ -240,8 +249,6 @@ Examples:
 				 (list xlen 0 xlen xlen)
 				 (list 0 ylen ylen ylen))))
   canvas)
-
-(defparameter *testcanvas* (create-canvas 60 20))
 
 (defun print-canvas (canvas)
   "print the whole canvas as braille characters.
