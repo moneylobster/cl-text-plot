@@ -1,6 +1,8 @@
 ## cl-text-plot
 A plotting library for Common Lisp that prints plots on the REPL using Unicode braille characters. Code quality/style may not be the best.
 
+Can be loaded as "textplot" with ASDF/Quicklisp (as a local project)
+
 ### Usage
 For some reason the plots don't show up nicely on Github's markdown renderer, so the outputs look wonkier than they actually are.
 #### Normal Plotting
@@ -60,7 +62,6 @@ For some reason the plots don't show up nicely on Github's markdown renderer, so
 
 ### TODOs
 * Polish api more
-* Turn into an ASDF project so it's actually usable as a library
 * Change usage example outputs with images
 * histograms and bar charts
 
