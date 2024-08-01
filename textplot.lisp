@@ -48,9 +48,9 @@ Examples:
 	  (let ((wins (car lst))
 			(loses (car lst)))
 		(dolist (obj (cdr lst))
-		  (if (funcall fn obj wins)
+		  (when (funcall fn obj wins)
 			  (setq wins obj))
-		  (if (funcall fn loses obj)
+		  (when (funcall fn loses obj)
 			  (setq loses obj)))
 		(list wins loses))))
 
@@ -106,7 +106,7 @@ for ___TEXT___: textlen=4, spacelen=10
 	  (truncate (/ (- spacelen textlen) 2))
 	  0))
 
-;;; Canvas stuff
+;;; Canvas stuff - braille
 
 (defparameter *braille*
   (mapcar (lambda (x) (char-code x))
@@ -184,6 +184,8 @@ corresponding braille dot number"
 													   (truncate blocky))
 								  *braille*))))))
   canvas)
+
+;;; Canvas stuff - blocks
 
 (defun draw-line! (canvas v1 v2 thickness)
   "Draw a line from v1 to v2 with thickness. Modifies canvas.
