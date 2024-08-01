@@ -187,6 +187,9 @@ corresponding braille dot number"
 
 ;;; Canvas stuff - blocks
 
+;;todo
+
+;;; Canvas stuff - drawing
 (defun draw-line! (canvas v1 v2 thickness)
   "Draw a line from v1 to v2 with thickness. Modifies canvas.
 v1 and v2 are 2-element lists: (x,y)
@@ -252,15 +255,15 @@ Examples:
 				 (list 0 ylen ylen ylen))))
   canvas)
 
-(defun print-canvas (canvas)
+(defun print-canvas (canvas &key (fmt-stream t))
   "print the whole canvas as braille characters.
 
 Examples:
 (print-canvas (create-canvas 6 6))"
   (dotimes (i (array-dimension canvas 0))
 	(dotimes (j (array-dimension canvas 1))
-	  (format t "~A" (render-braille (aref canvas i j))))
-	(format t "~%")))
+	  (format fmt-stream "~A" (render-braille (aref canvas i j))))
+	(format fmt-stream "~%")))
 
 (defun render-canvas (canvas)
   "render canvas as unicode chars"
@@ -268,7 +271,7 @@ Examples:
 
 ;;; Plotting stuff
 
-(defun print-canvas-with-labels (canvas &key title xlabel ylabel xlim ylim)
+(defun print-canvas-with-labels (canvas &key title xlabel ylabel xlim ylim (fmt-stream t))
   "Print the canvas with plot labels: a title, x and y axis labels and limits.
 No legend for now.
 
@@ -308,31 +311,31 @@ Examples:
 		 (xlimcount (if xlim 1 0))
 		 (xlabelcount (if xlabel 1 0))
 		 (linecount (+ 1 titlecount canv-ylen xlimcount xlabelcount)))
-	(dotimes (lineno linecount)
+	(dotimes (lineno linecount fmt-stream)
 	  (cond ((= (1+ lineno) titlecount)
 			 (if title (format t "~v,@T~A~%" titlestart title))) ; title
 			((< titlecount (1+ lineno) (+ titlecount canv-ylen 1))
 			 (if (= lineno (truncate (/ canv-ylen 2))) ; ylabel
-				 (if ylabel (format t "~A" ylabel))
-				 (format t "~v,@T" ylablen))
+				 (if ylabel (format fmt-stream "~A" ylabel))
+				 (format fmt-stream "~v,@T" ylablen))
 			 (cond ((and ylim (= lineno titlecount))
-					(format t "~v@A" ylimlen (second ylim))) ; upper ylim
+					(format fmt-stream "~v@A" ylimlen (second ylim))) ; upper ylim
 				   ((and ylim (= (1+ lineno) (+ titlecount canv-ylen)))
-					(format t "~v@A" ylimlen (first ylim))) ; lower ylim
+					(format fmt-stream "~v@A" ylimlen (first ylim))) ; lower ylim
 				   (t
-					(format t "~v@T" ylimlen)))
+					(format fmt-stream "~v@T" ylimlen)))
 			 (dotimes (xindex (array-dimension canvas 1)) ; canvas
-			   (format t "~A" (render-braille (aref canvas (- lineno titlecount) xindex))))
-			 (format t "~%"))
+			   (format fmt-stream "~A" (render-braille (aref canvas (- lineno titlecount) xindex))))
+			 (format fmt-stream "~%"))
 			((= lineno (+ 1 titlecount canv-ylen)) ; xlim
-			 (if xlim (format t "~v,@T~vA~v@A~%"
+			 (if xlim (format fmt-stream "~v,@T~vA~v@A~%"
 							  (+ ylablen ylimlen)
 							  (truncate (/ canv-xlen 2))
 							  (first xlim)
 							  (truncate (/ canv-xlen 2))
 							  (second xlim))))
 			((= lineno (+ 2 titlecount canv-ylen)) ;xlabel
-			 (if xlabel (format t "~v,@T~A~%" xlabstart xlabel)))))))
+			 (if xlabel (format fmt-stream "~v,@T~A~%" xlabstart xlabel)))))))
 
 (defun invert-y-axis (data ymax)
   "subtract ymax from the y component of each datapoint.
@@ -362,7 +365,7 @@ Examples:
 					(+ ymin (* yratio (- (second x) dataymin)))))
 			data)))
 
-(defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)))
+(defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil))
   "Plot data. Data needs to be an Nx2 list of points.
 
 Examples:
@@ -411,7 +414,12 @@ Examples:
 									 :xlabel xlabel
 									 :ylabel ylabel
 									 :xlim xlim
-									 :ylim ylim)))
+									 :ylim ylim
+									 :fmt-stream (if as-string
+													 (make-array 0
+																 :element-type 'character
+																 :fill-pointer 0)
+													 t))))
 
 (defun plot-fun (fn min max &optional (step 1))
   "plot the single-input function fn over the given interval.
@@ -438,7 +446,7 @@ Examples:
 		:ylabel (write-to-string fn)
 		:xlabel "x"))
 
-(defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)))
+(defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil))
   "Plot data as a scatterplot. Data needs to be an Nx2 list of points.
 
 Examples:
@@ -483,4 +491,9 @@ Examples:
 									 :xlabel xlabel
 									 :ylabel ylabel
 									 :xlim xlim
-									 :ylim ylim)))
+									 :ylim ylim
+									 :fmt-stream (if as-string
+													 (make-array 0
+																 :element-type 'character
+																 :fill-pointer 0)
+													 t))))
