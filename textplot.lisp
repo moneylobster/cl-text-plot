@@ -9,16 +9,6 @@
 
 (in-package :textplot)
 
-(proclaim '(inline
-			add-braille
-			sub-braille
-			make-braille
-			render-braille
-			xy-to-braille-index
-			2d+
-			2dneg
-			2ddot))
-
 ;;; Utility functions
 (defun 2d+ (v1 v2)
   "add vectors v1 and v2 elementwise, which are 2-element lists"
@@ -106,96 +96,204 @@ for ___TEXT___: textlen=4, spacelen=10
 	  (truncate (/ (- spacelen textlen) 2))
 	  0))
 
-;;; Canvas stuff - braille
+(defclass canvas ()
+  ((primitives
+	:initarg :primitives
+	:accessor primitives
+	:documentation "List of characters to be used for the cells. The first element should be the empty one.")
+   (cell-resolution
+	:initarg :cell-resolution
+	:accessor cell-resolution
+	:documentation "Two-element list denoting the pixel resolution of each cell as (x y)")
+   (canvas-size
+	:initarg :canvas-size
+	:accessor canvas-size
+	:documentation "Two-element list denoting the canvas size in characters as (x y)")
+   (canvas
+	:initarg :canvas
+	:accessor canvas)))
 
-(defparameter *braille*
-  (mapcar (lambda (x) (char-code x))
-		  '(#\BRAILLE_PATTERN_BLANK
-			#\BRAILLE_PATTERN_DOTS-1
-			#\BRAILLE_PATTERN_DOTS-2
-			#\BRAILLE_PATTERN_DOTS-3
-			#\BRAILLE_PATTERN_DOTS-4
-			#\BRAILLE_PATTERN_DOTS-5
-			#\BRAILLE_PATTERN_DOTS-6
-			#\BRAILLE_PATTERN_DOTS-7
-			#\BRAILLE_PATTERN_DOTS-8))
-  "set of braille dot primitives.
-0 is empty, 1-8 are as follows:
+(defmethod initialize-instance :after ((c canvas) &rest args)
+  "Create a canvas as an array of size x y.
+Actual resolution is x*CELLRESX x y*CELLRESY"
+  (declare (ignorable args))
+  (setf (canvas c)
+		(make-array (reverse (canvas-size c)) :initial-element (first (primitives c)))))
+
+(defclass braille-canvas (canvas)
+  ()
+  (:default-initargs
+   :primitives '(#\BRAILLE_PATTERN_BLANK
+				 #\BRAILLE_PATTERN_DOTS-1
+				 #\BRAILLE_PATTERN_DOTS-2
+				 #\BRAILLE_PATTERN_DOTS-3
+				 #\BRAILLE_PATTERN_DOTS-4
+				 #\BRAILLE_PATTERN_DOTS-5
+				 #\BRAILLE_PATTERN_DOTS-6
+				 #\BRAILLE_PATTERN_DOTS-7
+				 #\BRAILLE_PATTERN_DOTS-8)
+   :cell-resolution '(2 4))
+  (:documentation "A canvas using braille characters.
+For the primitives, 0 is empty, 1-8 are as follows:
 1 4
 2 5
 3 6
-7 8")
+7 8"))
 
-(defun make-braille (&rest args)
-  "returns a braille character that has the dots specified in args.
+(defclass blocks-canvas (canvas)
+  ()
+  (:default-initargs
+   :primitives '(#\SPACE
+				 #\BLOCK_SEXTANT-1
+				 #\BLOCK_SEXTANT-2
+				 #\BLOCK_SEXTANT-12
+				 #\BLOCK_SEXTANT-3
+				 #\BLOCK_SEXTANT-13
+				 #\BLOCK_SEXTANT-23
+				 #\BLOCK_SEXTANT-123
+				 #\BLOCK_SEXTANT-4
+				 #\BLOCK_SEXTANT-14
+				 #\BLOCK_SEXTANT-24
+				 #\BLOCK_SEXTANT-124
+				 #\BLOCK_SEXTANT-34
+				 #\BLOCK_SEXTANT-134
+				 #\BLOCK_SEXTANT-234
+				 #\BLOCK_SEXTANT-1234
+				 #\BLOCK_SEXTANT-5
+				 #\BLOCK_SEXTANT-15
+				 #\BLOCK_SEXTANT-25
+				 #\BLOCK_SEXTANT-125
+				 #\BLOCK_SEXTANT-35
+				 #\LEFT_HALF_BLOCK
+				 #\BLOCK_SEXTANT-235
+				 #\BLOCK_SEXTANT-1235
+				 #\BLOCK_SEXTANT-45
+				 #\BLOCK_SEXTANT-145
+				 #\BLOCK_SEXTANT-245
+				 #\BLOCK_SEXTANT-1245
+				 #\BLOCK_SEXTANT-345
+				 #\BLOCK_SEXTANT-1345
+				 #\BLOCK_SEXTANT-2345
+				 #\BLOCK_SEXTANT-12345
+				 #\BLOCK_SEXTANT-6
+				 #\BLOCK_SEXTANT-16
+				 #\BLOCK_SEXTANT-26
+				 #\BLOCK_SEXTANT-126
+				 #\BLOCK_SEXTANT-36
+				 #\BLOCK_SEXTANT-136
+				 #\BLOCK_SEXTANT-236
+				 #\BLOCK_SEXTANT-1236
+				 #\BLOCK_SEXTANT-46
+				 #\BLOCK_SEXTANT-146
+				 #\RIGHT_HALF_BLOCK
+				 #\BLOCK_SEXTANT-1246
+				 #\BLOCK_SEXTANT-346
+				 #\BLOCK_SEXTANT-1346
+				 #\BLOCK_SEXTANT-2346
+				 #\BLOCK_SEXTANT-12346
+				 #\BLOCK_SEXTANT-56
+				 #\BLOCK_SEXTANT-156
+				 #\BLOCK_SEXTANT-256
+				 #\BLOCK_SEXTANT-1256
+				 #\BLOCK_SEXTANT-356
+				 #\BLOCK_SEXTANT-1356
+				 #\BLOCK_SEXTANT-2356
+				 #\BLOCK_SEXTANT-12356
+				 #\BLOCK_SEXTANT-456
+				 #\BLOCK_SEXTANT-1456
+				 #\BLOCK_SEXTANT-2456
+				 #\BLOCK_SEXTANT-12456
+				 #\BLOCK_SEXTANT-3456
+				 #\BLOCK_SEXTANT-13456
+				 #\BLOCK_SEXTANT-23456
+				 #\FULL_BLOCK)
+   :cell-resolution '(2 3))
+  (:documentation "A canvas using sextant block characters.
+1-6 are oriented as follows:
+1 2
+3 4
+5 6"))
+
+(defun create-canvas (x y &optional (backend :blocks))
+  "Create a canvas of size x y using BACKEND.
+BACKEND can be one of :braille or :blocks.
+Actual resolution is [x y].*cell-resolution of the backend."
+  (make-instance (ccase backend
+				   (:braille 'braille-canvas)
+				   (:blocks 'blocks-canvas))
+				 :canvas-size (list x y)))
+
+(defgeneric add-cells (canvas &rest args))
+
+(defmethod add-cells ((canvas braille-canvas) &rest args)
+    "add braille characters
+
 Examples:
-(make-braille 1 2 3)
-=> returns a char with 1,2,3 filled."
-  (apply #'logior (mapcar (lambda (x) (nth x *braille*)) args)))
+  (let ((c (create-canvas 1 1 :braille)))
+	(format t \"~A~%\" (add-cells c
+								  (nth 2 (primitives c))
+								  (nth 6 (primitives c)))))
+=> prints ⠢
+"
+  (code-char (apply #'logior (mapcar #'char-code args))))
 
-(defun render-braille (braillecode)
-  "return the character for the corresponding braille charcode."
-  (code-char braillecode))
-
-(defun print-braille ()
-  "print all the braille characters for visualization"
-  (dolist (i *braille*)
-	(format t "~A ~A~%" i (render-braille i))))
-
-(defun add-braille (&rest args)
-  "add braille characters
+(defmethod add-cells ((canvas blocks-canvas) &rest args)
+  "add block characters
 
 Examples:
-(format t \"~A~%\" (code-char (add-braille (nth 2 *braille*) (nth 6 *braille*))))
-=> prints ⠢"
-  (apply #'logior args))
+(add-cells (create-canvas 1 1 :blocks) #\BLOCK_SEXTANT-1 #\BLOCK_SEXTANT-35)
+=> #\LEFT_HALF_BLOCK"
+  (nth (apply #'logior (mapcar (lambda (x) (position x (primitives canvas)))
+							   args))
+	   (primitives canvas)))
 
-(defun sub-braille (x1 x2)
-  "subtract x2 from x1
+(defgeneric xy-to-cell-index (canvas x y)
+  (:documentation "Turn x y coordinates given for the cell grid into the corresponding
+primitives list index"))
 
-Examples:
-(code-char (sub-braille (make-braille 1 2 3) (make-braille 2 3 4)))
-=> #\BRAILLE_PATTERN_DOTS-1"
-										; truth table:
-										; 0 0 0
-										; 0 1 0
-										; 1 0 1
-										; 1 1 0
-  (logior (first *braille*) (logxor x1 (logand x1 x2))))
-
-(defun xy-to-braille-index (x y)
-  "Turn x y coordinates given for the 4x2 braille grid into the
-corresponding braille dot number"
+(defmethod xy-to-cell-index ((canvas braille-canvas) x y)
   (nth (+ x (* 2 y)) '(1 4 2 5 3 6 7 8)))
 
-(defun create-canvas (x y)
-  "Create an array of size x y. Actual resolution is x*2 x y*4"
-  (make-array (list y x) :initial-element (nth 0 *braille*)))
+(defmethod xy-to-cell-index ((canvas blocks-canvas) x y)
+  (ash #b000001 (+ x (* 2 y))))
 
 (defun turn-on! (canvas x y)
-  "Turn on the pixel located at x,y. Modifies canvas."
-  (if (and (>= x 0) (>= y 0)
-		   (< x (* 2 (array-dimension canvas 1))) (< y (* 4 (array-dimension canvas 0))))
-	  (multiple-value-bind (gridx blockx) (truncate x 2)
-		(multiple-value-bind (gridy blocky) (truncate y 4)
-		  (setf (aref canvas gridy gridx)
-				(add-braille (aref canvas gridy gridx)
-							 (nth (xy-to-braille-index (truncate blockx)
-													   (truncate blocky))
-								  *braille*))))))
+  "Turn on the pixel located at X,Y. Modifies CANVAS."
+  (let ((canvas-data (canvas canvas))
+		(cell-resolution (cell-resolution canvas)))
+	(if (and (>= x 0)
+			 (>= y 0)
+			 (< x (* (first cell-resolution) (array-dimension canvas-data 1)))
+			 (< y (* (second cell-resolution) (array-dimension canvas-data 0))))
+		(multiple-value-bind (gridx blockx) (truncate x (first cell-resolution))
+		  (multiple-value-bind (gridy blocky) (truncate y (second cell-resolution))
+			(setf (aref canvas-data gridy gridx)
+				  (add-cells canvas
+							 (aref canvas-data gridy gridx)
+							 (nth (xy-to-cell-index canvas
+													(truncate blockx)
+													(truncate blocky))
+								  (primitives canvas))))))))
   canvas)
 
-;;; Canvas stuff - blocks
+(defun print-canvas (canvas &key (fmt-stream t))
+  "print the whole canvas as unicode characters.
 
-;;todo
+Examples:
+(print-canvas (create-canvas 6 6 :braille))"
+  (let ((canvas-data (canvas canvas)))
+	(dotimes (i (array-dimension canvas-data 0))
+	  (dotimes (j (array-dimension canvas-data 1))
+		(format fmt-stream "~A" (aref canvas-data i j)))
+	  (format fmt-stream "~%"))))
 
 ;;; Canvas stuff - drawing
 (defun draw-line! (canvas v1 v2 thickness)
-  "Draw a line from v1 to v2 with thickness. Modifies canvas.
-v1 and v2 are 2-element lists: (x,y)
+  "Draw a line from V1 to V2 with THICKNESS. Modifies CANVAS.
+V1 and V2 are 2-element lists: (x,y)
 
 Examples:
-(print-canvas (draw-line! (create-canvas 6 6) '(5 5) '(10 10) 1))
+(print-canvas (draw-line! (create-canvas 6 6 :braille) '(5 5) '(10 10) 1))
 "
   (let* ((linevec (2d+ v2 (2dneg v1)))
 		 (perpvec (list (- (second linevec)) (first linevec)))
@@ -225,7 +323,7 @@ Examples:
   "Draw a circle with center and radius. Modifies canvas.
 
 Examples:
-(print-canvas (draw-circle! (create-canvas 6 6) '(5 5) 5))
+(print-canvas (draw-circle! (create-canvas 6 6 :braille) '(5 5) 5))
 "
   (let* ((maxpoints (list (list (+ (first center) radius)
 								(- (first center) radius))
@@ -243,10 +341,12 @@ Examples:
   "Draw a frame to the edge of the canvas. Modifies canvas.
 
 Examples:
-(print-canvas (draw-frame! (create-canvas 60 20)))
+(print-canvas (draw-frame! (create-canvas 60 20 :braille)))
 "
-  (let ((xlen (- (* 2 (array-dimension canvas 1)) 1))
-		(ylen (- (* 4 (array-dimension canvas 0)) 1)))
+  (let* ((cell-resolution (cell-resolution canvas))
+		 (canvas-data (canvas canvas))
+		 (xlen (- (* (first cell-resolution) (array-dimension canvas-data 1)) 1))
+		 (ylen (- (* (second cell-resolution) (array-dimension canvas-data 0)) 1)))
 	(apply #'mapcar (lambda (x1 y1 x2 y2)
 					  (draw-line! canvas (list x1 y1) (list x2 y2) 1))
 		   (list (list 0 0 xlen 0)
@@ -254,20 +354,6 @@ Examples:
 				 (list xlen 0 xlen xlen)
 				 (list 0 ylen ylen ylen))))
   canvas)
-
-(defun print-canvas (canvas &key (fmt-stream t))
-  "print the whole canvas as braille characters.
-
-Examples:
-(print-canvas (create-canvas 6 6))"
-  (dotimes (i (array-dimension canvas 0))
-	(dotimes (j (array-dimension canvas 1))
-	  (format fmt-stream "~A" (render-braille (aref canvas i j))))
-	(format fmt-stream "~%")))
-
-(defun render-canvas (canvas)
-  "render canvas as unicode chars"
-  (array-map #'render-braille canvas))
 
 ;;; Plotting stuff
 
@@ -292,13 +378,17 @@ Diagram:
 	   +----------+
 
 Examples:
-(print-canvas-with-labels (draw-line! (draw-frame! (create-canvas 20 10))
-											   '(10 10) '(20 30) 3)
-								   :title \"Hello\" :xlabel \"time\" :ylabel \"f(x)\"
-								   :xlim '(0 10) :ylim '(-10 10))
+  (print-canvas-with-labels (draw-frame!
+							 (draw-line!
+							  (create-canvas 20 10 :braille)
+							  '(10 10) '(20 30) 3))
+							:title \"Hello\" :xlabel \"time\" :ylabel \"f(x)\"
+							:xlim '(0 10) :ylim '(-10 10))
 "
-  (let* ((canv-xlen (array-dimension canvas 1))
-		 (canv-ylen (array-dimension canvas 0))
+
+  (let* ((canvas-data (canvas canvas))
+		 (canv-xlen (array-dimension canvas-data 1))
+		 (canv-ylen (array-dimension canvas-data 0))
 		 (titlelen (length title))
 		 (xlablen (length xlabel))
 		 (ylablen (length ylabel))
@@ -324,8 +414,8 @@ Examples:
 					(format fmt-stream "~v@A" ylimlen (first ylim))) ; lower ylim
 				   (t
 					(format fmt-stream "~v@T" ylimlen)))
-			 (dotimes (xindex (array-dimension canvas 1)) ; canvas
-			   (format fmt-stream "~A" (render-braille (aref canvas (- lineno titlecount) xindex))))
+			 (dotimes (xindex canv-xlen) ; canvas
+			   (format fmt-stream "~A" (aref canvas-data (- lineno titlecount) xindex)))
 			 (format fmt-stream "~%"))
 			((= lineno (+ 1 titlecount canv-ylen)) ; xlim
 			 (if xlim (format fmt-stream "~v,@T~vA~v@A~%"
@@ -365,11 +455,19 @@ Examples:
 					(+ ymin (* yratio (- (second x) dataymin)))))
 			data)))
 
-(defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil))
+(defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend :blocks))
   "Plot data. Data needs to be an Nx2 list of points.
 
+TITLE: a string, printed above the plot.
+XLABEL and YLABEL: strings describing the axes, printed next to the axes.
+SIZE: plot size in characters as a list '(x y).
+THICKNESS: line thickness.
+ZOOM: how much to scale the plot as a list '(x y).
+AS-STRING: if t, return plot as a string instead of printing.
+BACKEND: which rendering backend to use.
+
 Examples:
-(plot '((1 2) (2 6) (3 4)) :title \"Cool plot\")
+(plot '((1 2) (2 6) (3 4)) :title \"Cool plot\" :backend :braille)
 =>
       Cool plot
 6⡏⠉⠉⠉⠉⠉⠉⠉⠉⣹⠛⢍⠉⠉⠉⠉⠉⠉⠉⢹
@@ -384,20 +482,22 @@ Examples:
 2⣷⣃⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣸
  1                  3
 "
-										; todo draw axes flag
-  (let* ((xminmax (best-worst #'< (mapcar #'first data)))
+										; todo add flag to toggle drawing axes
+  (let* ((canvas (create-canvas (first size) (second size) backend))
+		 (xminmax (best-worst #'< (mapcar #'first data)))
 		 (yminmax (best-worst #'< (mapcar #'second data)))
 		 (xmidpoint (/ (+ (first xminmax) (second xminmax)) 2))
 		 (ymidpoint (/ (+ (first yminmax) (second yminmax)) 2))
+		 (xres (first (cell-resolution canvas)))
+		 (yres (second (cell-resolution canvas)))
 		 (datafmt (invert-y-axis
 				   (scale-data data
-							   (* 2 (first size) (- 1 (first zoom)))
-							   (* 2 (first size) (first zoom))
-							   (* 4 (second size) (- 1 (second zoom)))
-							   (* 4 (second size) (second zoom))
+							   (* xres (first size) (- 1 (first zoom)))
+							   (* xres (first size) (first zoom))
+							   (* yres (second size) (- 1 (second zoom)))
+							   (* yres (second size) (second zoom))
 							   xminmax yminmax)
-				   (* 4 (second size))))
-		 (canvas (apply #'create-canvas size))
+				   (* yres (second size))))
 		 (xlim (mapcar (lambda (x)
 						 (+ (/ (- x xmidpoint) (first zoom)) xmidpoint))
 					   xminmax))
@@ -421,11 +521,11 @@ Examples:
 																 :fill-pointer 0)
 													 t))))
 
-(defun plot-fun (fn min max &optional (step 1))
-  "plot the single-input function fn over the given interval.
+(defun plot-fun (fn min max &optional (step 1) (backend :blocks))
+  "Plot the single-input function FN over the given interval.
 
 Examples:
-(plot-fun #'sin -4 4 0.1)
+(plot-fun #'sin -4 4 0.1 :braille)
 =>
                0.99957365⡏⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢉⠏⠙⢏⠉⠉⠉⢹
                          ⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡎⠀⠀⠘⡆⠀⠀⢸
@@ -444,13 +544,22 @@ Examples:
 				(loop for i from min to max by step
 					  collect i))
 		:ylabel (write-to-string fn)
-		:xlabel "x"))
+		:xlabel "x"
+		:backend backend))
 
-(defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil))
+(defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend :blocks))
   "Plot data as a scatterplot. Data needs to be an Nx2 list of points.
 
+TITLE: a string, printed above the plot.
+XLABEL and YLABEL: strings describing the axes, printed next to the axes.
+SIZE: plot size in characters as a list '(x y).
+THICKNESS: circle size.
+ZOOM: how much to scale the plot as a list '(x y).
+AS-STRING: if t, return plot as a string instead of printing.
+BACKEND: which rendering backend to use.
+
 Examples:
-(scatter '((1 2) (2 6) (3 3) (4 4)))
+(scatter '((1 2) (2 6) (3 3) (4 4)) :backend :braille)
 =>
 6.5⡏⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢹
    ⡇⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
@@ -464,20 +573,23 @@ Examples:
 1.5⣇⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣸
    0.625          4.375
 "
-										; todo draw axes flag
-  (let* ((xminmax (best-worst #'< (mapcar #'first data)))
+										; todo add flag to toggle drawing axes
+  (let* ((canvas (create-canvas (first size) (second size) backend))
+		 (xminmax (best-worst #'< (mapcar #'first data)))
 		 (yminmax (best-worst #'< (mapcar #'second data)))
 		 (xmidpoint (/ (+ (first xminmax) (second xminmax)) 2))
 		 (ymidpoint (/ (+ (first yminmax) (second yminmax)) 2))
+		 (xres (first (cell-resolution canvas)))
+		 (yres (second (cell-resolution canvas)))
 		 (datafmt (invert-y-axis
 				   (scale-data data
-							   (* 2 (first size) (- 1 (first zoom)))
-							   (* 2 (first size) (first zoom))
-							   (* 4 (second size) (- 1 (second zoom)))
-							   (* 4 (second size) (second zoom))
+							   (* xres (first size) (- 1 (first zoom)))
+							   (* xres (first size) (first zoom))
+							   (* yres (second size) (- 1 (second zoom)))
+							   (* yres (second size) (second zoom))
 							   xminmax yminmax)
-				   (* 4 (second size))))
-		 (canvas (apply #'create-canvas size))
+				   (* yres (second size))))
+		 
 		 (xlim (mapcar (lambda (x)
 						 (+ (/ (- x xmidpoint) (first zoom)) xmidpoint))
 					   xminmax))
