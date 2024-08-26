@@ -4,7 +4,7 @@ A plotting library for Common Lisp that prints plots on the REPL using Unicode c
 Can be loaded as "textplot" with ASDF/Quicklisp (as a local project)
 
 ### Usage
-You can find For some reason the plots don't show up nicely on Github's markdown renderer, so the outputs look wonkier than they actually are.
+For some reason the plots don't show up nicely on Github's markdown renderer, so the outputs look wonkier than they actually are.
 
 There are two backends:
 * `:blocks`  uses characters from the "Symbols for Legacy Computing" set.
