@@ -1,7 +1,7 @@
 ## cl-text-plot
 A plotting library for Common Lisp that prints plots on the REPL using Unicode characters. Code quality/style may not be the best.
 
-Can be loaded as "textplot" with ASDF/Quicklisp (as a local project)
+Can be loaded as "textplot" via Ultralisp.
 
 ### Usage
 For some reason the plots don't show up nicely on Github's markdown renderer, so the outputs look wonkier than they actually are.
