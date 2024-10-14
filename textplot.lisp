@@ -1,13 +1,36 @@
 ;;;; implements a unicode canvas and plotting
+;; TODOs
+;; Add colorization:
+
+;;   There are some existing libraries but all that's really needed is
+;;   to do a (code-char 27) or #\Esc and then ]31m or whatever and a
+;;   ]0m at the end. Chlorophyll seems nice, and is available on
+;;   Quicklisp and Ultralisp, but the auto-detection doesn't work on
+;;   windows terminal, and cannot test sly and slime's support
+;;   (seemingly), so maybe write a minimal version yourself and gate
+;;   it behind a feature flag or whatever.
+
+;; todo implement canvas-colors functions
+
+;; Multiple plots:
+
+;;   Once colorization exists we can add hold functionality to
+;;   plots. Maybe for single-colored plots, find an empty place on the
+;;   plot and write the label there? (or use arrows?)
 
 (defpackage :textplot
 			(:use :common-lisp)
 			(:export
 			 #:plot
 			 #:plot-fun
-			 #:scatter))
+			 #:scatter
+			 #:*colors-enabled*))
 
 (in-package :textplot)
+
+(defvar *colors-enabled* nil
+  "If you want your plots to be printed with color using the ansi color
+codes, set this to t. Your terminal must support ansi color codes.")
 
 ;;; Utility functions
 (defun 2d+ (v1 v2)
@@ -96,6 +119,43 @@ for ___TEXT___: textlen=4, spacelen=10
 	  (truncate (/ (- spacelen textlen) 2))
 	  0))
 
+(defun wrap-when (test fn arg)
+  "Call function FN with ARG if test is true, otherwise return ARG.
+
+Examples:
+(wrap-when t #'sqrt 4)
+=> 2
+(wrap-when nil #'sqrt 4)
+=> 4"
+  (if test (funcall fn arg) arg))
+
+;; 4-bit color codes
+(defconstant +black+ 30)
+(defconstant +red+ 31)
+(defconstant +green+ 32)
+(defconstant +yellow+ 33)
+(defconstant +blue+ 34)
+(defconstant +magenta+ 35)
+(defconstant +cyan+ 36)
+(defconstant +white+ 37)
+(defconstant +bright-black+ 90)
+(defconstant +bright-red+ 91)
+(defconstant +bright-green+ 92)
+(defconstant +bright-yellow+ 93)
+(defconstant +bright-blue+ 94)
+(defconstant +bright-magenta+ 95)
+(defconstant +bright-cyan+ 96)
+(defconstant +bright-white+ 97)
+
+(defun colorize (string color)
+  "Wrap a string with color codes.
+
+Examples:
+(colorize \"hello\" 31)
+=>hello in red"
+  (format nil "~A[~Am~A~A[0m" #\Esc color string #\Esc))
+
+;; canvas backends
 (defclass canvas ()
   ((primitives
 	:initarg :primitives
@@ -111,14 +171,21 @@ for ___TEXT___: textlen=4, spacelen=10
 	:documentation "Two-element list denoting the canvas size in characters as (x y)")
    (canvas
 	:initarg :canvas
-	:accessor canvas)))
+	:accessor canvas
+	:documentation "x*y character array containing the plot itself. Doesn't include labels/titles etc.")
+   (canvas-colors
+	:initarg :canvas-colors
+	:accessor canvas-colors
+	:documentation "x*y number array containing the foreground color code of the corresponding characters in the plot.")))
 
 (defmethod initialize-instance :after ((c canvas) &rest args)
   "Create a canvas as an array of size x y.
 Actual resolution is x*CELLRESX x y*CELLRESY"
   (declare (ignorable args))
   (setf (canvas c)
-		(make-array (reverse (canvas-size c)) :initial-element (first (primitives c)))))
+		(make-array (reverse (canvas-size c)) :initial-element (first (primitives c))))
+  (setf (canvas-colors c)
+		(make-array (reverse (canvas-size c)) :initial-element 0)))
 
 (defclass braille-canvas (canvas)
   ()
@@ -276,6 +343,20 @@ primitives list index"))
 								  (primitives canvas))))))))
   canvas)
 
+(defun set-color! (canvas x y color)
+  "Set the canvas cell that contains the pixel X,Y to be of the color code COLOR. Modifies CANVAS."
+  (let ((canvas-data (canvas-colors canvas))
+		(cell-resolution (cell-resolution canvas)))
+	(if (and (>= x 0)
+			 (>= y 0)
+			 (< x (* (first cell-resolution) (array-dimension canvas-data 1)))
+			 (< y (* (second cell-resolution) (array-dimension canvas-data 0))))
+		(multiple-value-bind (gridx blockx) (truncate x (first cell-resolution))
+		  (multiple-value-bind (gridy blocky) (truncate y (second cell-resolution))
+			(setf (aref canvas-data gridy gridx) color))))))
+		  
+							 
+
 (defun print-canvas (canvas &key (fmt-stream t))
   "print the whole canvas as unicode characters.
 
@@ -288,9 +369,10 @@ Examples:
 	  (format fmt-stream "~%"))))
 
 ;;; Canvas stuff - drawing
-(defun draw-line! (canvas v1 v2 thickness)
+(defun draw-line! (canvas v1 v2 thickness &key color)
   "Draw a line from V1 to V2 with THICKNESS. Modifies CANVAS.
 V1 and V2 are 2-element lists: (x,y)
+COLOR is an optional color code to color the line with.
 
 Examples:
 (print-canvas (draw-line! (create-canvas 6 6 :braille) '(5 5) '(10 10) 1))
@@ -311,7 +393,9 @@ Examples:
 						  (best-worst #'> (mapcar
 										   (lambda (x) (truncate (second x)))
 										   cornerpoints)))))
-	(mapcar (lambda (p) (turn-on! canvas (first p) (second p)))
+	(mapcar (lambda (p)
+			  (turn-on! canvas (first p) (second p))
+			  (when color (set-color! canvas (first p) (second p) color)))
 			(loop for x from (second (first maxpoints)) to (first (first maxpoints))
 				  append
 				  (loop for y from (second (second maxpoints)) to (first (second maxpoints))
@@ -319,8 +403,10 @@ Examples:
 						  collect (list x y)))))
   canvas)
 
-(defun draw-circle! (canvas center radius)
-  "Draw a circle with center and radius. Modifies canvas.
+(defun draw-circle! (canvas center radius &key color)
+  "Draw a circle with CENTER and RADIUS. Modifies CANVAS.
+CENTER is a 2-element list (x y).
+COLOR is an optional color code to color the line with.
 
 Examples:
 (print-canvas (draw-circle! (create-canvas 6 6 :braille) '(5 5) 5))
@@ -329,7 +415,9 @@ Examples:
 								(- (first center) radius))
 						  (list (+ (second center) radius)
 								(- (second center) radius)))))
-	(mapcar (lambda (p) (turn-on! canvas (first p) (second p)))
+	(mapcar (lambda (p)
+			  (turn-on! canvas (first p) (second p))
+			  (when color (set-color! canvas (first p) (second p) color)))
 			(loop for x from (second (first maxpoints)) to (first (first maxpoints))
 				  append
 				  (loop for y from (second (second maxpoints)) to (first (second maxpoints))
@@ -337,8 +425,9 @@ Examples:
 						  collect (list x y)))))
   canvas)
 
-(defun draw-frame! (canvas)
-  "Draw a frame to the edge of the canvas. Modifies canvas.
+(defun draw-frame! (canvas &key color)
+  "Draw a frame to the edge of the canvas. Modifies CANVAS.
+COLOR is an optional color code to color the line with.
 
 Examples:
 (print-canvas (draw-frame! (create-canvas 60 20 :braille)))
@@ -348,7 +437,7 @@ Examples:
 		 (xlen (- (* (first cell-resolution) (array-dimension canvas-data 1)) 1))
 		 (ylen (- (* (second cell-resolution) (array-dimension canvas-data 0)) 1)))
 	(apply #'mapcar (lambda (x1 y1 x2 y2)
-					  (draw-line! canvas (list x1 y1) (list x2 y2) 1))
+						  (draw-line! canvas (list x1 y1) (list x2 y2) 1 :color color))
 		   (list (list 0 0 xlen 0)
 				 (list 0 0 0 ylen)
 				 (list xlen 0 xlen xlen)
@@ -415,7 +504,13 @@ Examples:
 				   (t
 					(format fmt-stream "~v@T" ylimlen)))
 			 (dotimes (xindex canv-xlen) ; canvas
-			   (format fmt-stream "~A" (aref canvas-data (- lineno titlecount) xindex)))
+			   (format fmt-stream "~A"
+					   (wrap-when *colors-enabled*
+								  (lambda (str) (colorize str
+														  (aref (canvas-colors canvas)
+																(- lineno titlecount) xindex)))
+								  (aref canvas-data
+										(- lineno titlecount) xindex))))
 			 (format fmt-stream "~%"))
 			((= lineno (+ 1 titlecount canv-ylen)) ; xlim
 			 (if xlim (format fmt-stream "~v,@T~vA~v@A~%"
@@ -428,8 +523,8 @@ Examples:
 			 (if xlabel (format fmt-stream "~v,@T~A~%" xlabstart xlabel)))))))
 
 (defun invert-y-axis (data ymax)
-  "subtract ymax from the y component of each datapoint.
-data is an Nx2 list.
+  "Subtract YMAX from the y component of each datapoint.
+DATA is an Nx2 list.
 
 Examples:
 (invert-y-axis '((1 2) (3 4)) 4)
@@ -438,7 +533,7 @@ Examples:
   (mapcar (lambda (x) (list (first x) (- ymax (second x)))) data))
 
 (defun scale-data (data xmin xmax ymin ymax dataxminmax datayminmax)
-  "scale data so that the extrema in x and y correspond to xmax/min and ymax/min.
+  "Scale data so that the extrema in x and y correspond to xmax/min and ymax/min.
 
 Examples:
 (scale-data '((-1 0) (1 2)) 0 20 0 30 '(-1 1) '(0 2))
@@ -456,7 +551,9 @@ Examples:
 			data)))
 
 (defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend :blocks))
-  "Plot data. Data needs to be an Nx2 list of points.
+  "Plot data as a line chart.
+
+DATA: an Nx2 list of points.
 
 TITLE: a string, printed above the plot.
 XLABEL and YLABEL: strings describing the axes, printed next to the axes.
@@ -548,7 +645,9 @@ Examples:
 		:backend backend))
 
 (defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend :blocks))
-  "Plot data as a scatterplot. Data needs to be an Nx2 list of points.
+  "Plot data as a scatterplot.
+
+DATA: an Nx2 list of points.
 
 TITLE: a string, printed above the plot.
 XLABEL and YLABEL: strings describing the axes, printed next to the axes.
