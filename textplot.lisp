@@ -1,29 +1,15 @@
 ;;;; implements a unicode canvas and plotting
 ;; TODOs
-;; Add colorization:
-
-;;   There are some existing libraries but all that's really needed is
-;;   to do a (code-char 27) or #\Esc and then ]31m or whatever and a
-;;   ]0m at the end. Chlorophyll seems nice, and is available on
-;;   Quicklisp and Ultralisp, but the auto-detection doesn't work on
-;;   windows terminal, and cannot test sly and slime's support
-;;   (seemingly), so maybe write a minimal version yourself and gate
-;;   it behind a feature flag or whatever.
-
-;; todo implement canvas-colors functions
-
-;; Multiple plots:
-
-;;   Once colorization exists we can add hold functionality to
-;;   plots. Maybe for single-colored plots, find an empty place on the
-;;   plot and write the label there? (or use arrows?)
+;; legend
 
 (defpackage :textplot
 			(:use :common-lisp)
 			(:export
 			 #:plot
 			 #:plot-fun
+			 #:plot-multiple
 			 #:scatter
+			 #:scatter-multiple
 			 #:*colors-enabled*))
 
 (in-package :textplot)
@@ -129,6 +115,20 @@ Examples:
 => 4"
   (if test (funcall fn arg) arg))
 
+(defun flatten-1 (lst)
+  "Flatten list LST one level.
+
+Examples
+(flatten-1 '((1 2) 3 4 ((5 6) 7)))
+=> '(1 2 3 4 (5 6) 7)"
+  (let ((acc nil))
+	(dolist (el lst)
+	  (if (listp el)
+		  (dolist (el1 el)
+			(push el1 acc))
+		  (push el acc)))
+	(nreverse acc)))
+
 ;; 4-bit color codes
 (defconstant +black+ 30)
 (defconstant +red+ 31)
@@ -146,6 +146,11 @@ Examples:
 (defconstant +bright-magenta+ 95)
 (defconstant +bright-cyan+ 96)
 (defconstant +bright-white+ 97)
+(defconstant +4bit-colormap+ (list +red+ +green+ +yellow+
+								   +blue+ +magenta+ +cyan+
+								   +bright-red+ +bright-green+
+								   +bright-yellow+ +bright-blue+
+								   +bright-magenta+ +bright-cyan+))
 
 (defun colorize (string color)
   "Wrap a string with color codes.
@@ -444,6 +449,21 @@ Examples:
 				 (list 0 ylen ylen ylen))))
   canvas)
 
+(defun draw-chart! (canvas points thickness &key color)
+  "Draw lines connecting POINTS onto CANVAS with specified THICKNESS and
+COLOR."
+  (let ((last-pt nil))
+	(dolist (pt points)
+	  (if last-pt
+			(draw-line! canvas last-pt pt thickness :color color))
+		(setq last-pt pt))))
+
+(defun draw-scatter! (canvas points thickness &key color)
+  "Draw circles with THICKNESS on each of the POINTS on CANVAS with
+COLOR."
+  (dolist (pt points)
+	(draw-circle! canvas pt thickness :color color)))
+
 ;;; Plotting stuff
 
 (defun print-canvas-with-labels (canvas &key title xlabel ylabel xlim ylim (fmt-stream t))
@@ -550,6 +570,39 @@ Examples:
 					(+ ymin (* yratio (- (second x) dataymin)))))
 			data)))
 
+(defun plot-scale-calculations (data zoom)
+  "Repeated operations in plotting abstracted into a function.
+Calculates the minimum and maximum values in x and y
+and the ranges for the x and y axes.
+
+Returns values: XMINMAX YMINMAX XLIM YLIM
+each is a 2-element list."
+  (let* ((xminmax (best-worst #'< (mapcar #'first data)))
+		 (yminmax (best-worst #'< (mapcar #'second data)))
+		 (xmidpoint (/ (+ (first xminmax) (second xminmax)) 2))
+		 (ymidpoint (/ (+ (first yminmax) (second yminmax)) 2))
+		 (xlim (mapcar (lambda (x)
+						 (+ (/ (- x xmidpoint) (first zoom)) xmidpoint))
+					   xminmax))
+		 (ylim (mapcar (lambda (y)
+						 (+ (/ (- y ymidpoint) (second zoom)) ymidpoint))
+					   yminmax)))
+	(values xminmax yminmax xlim ylim)))
+
+(defun scale-points (data cell-resolution xminmax yminmax size zoom)
+  "Scale and invert the data such that each datapoint corresponds to its
+corresponding pixel on the canvas."
+  (let ((xres (first cell-resolution))
+		(yres (second cell-resolution)))
+	(invert-y-axis
+	 (scale-data data
+				 (* xres (first size) (- 1 (first zoom)))
+				 (* xres (first size) (first zoom))
+				 (* yres (second size) (- 1 (second zoom)))
+				 (* yres (second size) (second zoom))
+				 xminmax yminmax)
+	 (* yres (second size)))))
+
 (defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend :blocks))
   "Plot data as a line chart.
 
@@ -580,43 +633,22 @@ Examples:
  1                  3
 "
 										; todo add flag to toggle drawing axes
-  (let* ((canvas (create-canvas (first size) (second size) backend))
-		 (xminmax (best-worst #'< (mapcar #'first data)))
-		 (yminmax (best-worst #'< (mapcar #'second data)))
-		 (xmidpoint (/ (+ (first xminmax) (second xminmax)) 2))
-		 (ymidpoint (/ (+ (first yminmax) (second yminmax)) 2))
-		 (xres (first (cell-resolution canvas)))
-		 (yres (second (cell-resolution canvas)))
-		 (datafmt (invert-y-axis
-				   (scale-data data
-							   (* xres (first size) (- 1 (first zoom)))
-							   (* xres (first size) (first zoom))
-							   (* yres (second size) (- 1 (second zoom)))
-							   (* yres (second size) (second zoom))
-							   xminmax yminmax)
-				   (* yres (second size))))
-		 (xlim (mapcar (lambda (x)
-						 (+ (/ (- x xmidpoint) (first zoom)) xmidpoint))
-					   xminmax))
-		 (ylim (mapcar (lambda (y)
-						 (+ (/ (- y ymidpoint) (second zoom)) ymidpoint))
-					   yminmax))
-		 (last-pt nil))
-	(dolist (pt datafmt)
-	  (if last-pt
-		  (draw-line! canvas last-pt pt thickness))
-	  (setq last-pt pt))
-	(draw-frame! canvas)
-	(print-canvas-with-labels canvas :title title
-									 :xlabel xlabel
-									 :ylabel ylabel
-									 :xlim xlim
-									 :ylim ylim
-									 :fmt-stream (if as-string
-													 (make-array 0
-																 :element-type 'character
-																 :fill-pointer 0)
-													 t))))
+  (let ((canvas (create-canvas (first size) (second size) backend)))
+	(multiple-value-bind (xminmax yminmax xlim ylim) (plot-scale-calculations data zoom)
+	  (draw-chart! canvas
+				   (scale-points data (cell-resolution canvas) xminmax yminmax size zoom)
+				   thickness)
+	  (draw-frame! canvas)
+	  (print-canvas-with-labels canvas :title title
+									   :xlabel xlabel
+									   :ylabel ylabel
+									   :xlim xlim
+									   :ylim ylim
+									   :fmt-stream (if as-string
+													   (make-array 0
+																   :element-type 'character
+																   :fill-pointer 0)
+													   t)))))
 
 (defun plot-fun (fn min max &optional (step 1) (backend :blocks))
   "Plot the single-input function FN over the given interval.
@@ -643,6 +675,59 @@ Examples:
 		:ylabel (write-to-string fn)
 		:xlabel "x"
 		:backend backend))
+
+(defun plot-multiple (data-list &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend :blocks))
+  "Plot multiple lines of data as a combined chart.
+Setting *colors-enabled* to t is recommended.
+
+DATA-LIST: a list of Nx2 list of points. (MxNx2)
+
+TITLE: a string, printed above the plot.
+XLABEL and YLABEL: strings describing the axes, printed next to the axes.
+SIZE: plot size in characters as a list '(x y).
+THICKNESS: line thickness.
+ZOOM: how much to scale the plot as a list '(x y).
+AS-STRING: if t, return plot as a string instead of printing.
+BACKEND: which rendering backend to use.
+
+Examples:
+(plot-multiple '(((1 2) (2 6) (3 4))
+				 ((1 3) (2 2) (3 5))) :backend :braille)
+=>
+6⡏⠉⠉⠉⠉⠉⠉⠉⠉⣹⠛⢍⠉⠉⠉⠉⠉⠉⠉⢹
+ ⡇⠀⠀⠀⠀⠀⠀⠀⣰⠃⠀⠀⠑⢄⠀⠀⠀⠀⠀⢸
+ ⡇⠀⠀⠀⠀⠀⠀⣰⠃⠀⠀⠀⠀⠀⠑⢄⠀⠀⠀⢸
+ ⡇⠀⠀⠀⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠑⢄⢠⢺
+ ⡇⠀⠀⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡰⠑⢼
+ ⡇⠀⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠜⠀⠀⢸
+ ⡇⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠊⠀⠀⠀⢸
+ ⣧⣀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⡰⠁⠀⠀⠀⠀⢸
+ ⡇⣸⠛⠲⢤⣀⠀⠀⠀⠀⠀⢀⠜⠀⠀⠀⠀⠀⠀⢸
+2⣷⣃⣀⣀⣀⣈⣙⣲⣤⣀⣠⣊⣀⣀⣀⣀⣀⣀⣀⣸
+ 1                  3
+"
+										; todo add flag to toggle drawing axes
+  (let ((canvas (create-canvas (first size) (second size) backend)))
+	(multiple-value-bind (xminmax yminmax xlim ylim) (plot-scale-calculations
+													  (flatten-1 data-list) zoom)
+	  (loop for data in data-list
+			for color in +4bit-colormap+
+			do (draw-chart! canvas
+							(scale-points data
+										  (cell-resolution canvas)
+										  xminmax yminmax size zoom)
+							thickness :color color))
+	  (draw-frame! canvas)
+	  (print-canvas-with-labels canvas :title title
+									   :xlabel xlabel
+									   :ylabel ylabel
+									   :xlim xlim
+									   :ylim ylim
+									   :fmt-stream (if as-string
+													   (make-array 0
+																   :element-type 'character
+																   :fill-pointer 0)
+													   t)))))
 
 (defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend :blocks))
   "Plot data as a scatterplot.
@@ -673,38 +758,72 @@ Examples:
    0.625          4.375
 "
 										; todo add flag to toggle drawing axes
-  (let* ((canvas (create-canvas (first size) (second size) backend))
-		 (xminmax (best-worst #'< (mapcar #'first data)))
-		 (yminmax (best-worst #'< (mapcar #'second data)))
-		 (xmidpoint (/ (+ (first xminmax) (second xminmax)) 2))
-		 (ymidpoint (/ (+ (first yminmax) (second yminmax)) 2))
-		 (xres (first (cell-resolution canvas)))
-		 (yres (second (cell-resolution canvas)))
-		 (datafmt (invert-y-axis
-				   (scale-data data
-							   (* xres (first size) (- 1 (first zoom)))
-							   (* xres (first size) (first zoom))
-							   (* yres (second size) (- 1 (second zoom)))
-							   (* yres (second size) (second zoom))
-							   xminmax yminmax)
-				   (* yres (second size))))
-		 
-		 (xlim (mapcar (lambda (x)
-						 (+ (/ (- x xmidpoint) (first zoom)) xmidpoint))
-					   xminmax))
-		 (ylim (mapcar (lambda (y)
-						 (+ (/ (- y ymidpoint) (second zoom)) ymidpoint))
-					   yminmax)))
-	(dolist (pt datafmt)
-	  (draw-circle! canvas pt thickness))
-	(draw-frame! canvas)
-	(print-canvas-with-labels canvas :title title
-									 :xlabel xlabel
-									 :ylabel ylabel
-									 :xlim xlim
-									 :ylim ylim
-									 :fmt-stream (if as-string
-													 (make-array 0
-																 :element-type 'character
-																 :fill-pointer 0)
-													 t))))
+  (let ((canvas (create-canvas (first size) (second size) backend)))
+	(multiple-value-bind (xminmax yminmax xlim ylim) (plot-scale-calculations data zoom)
+	  (draw-scatter! canvas
+					 (scale-points data (cell-resolution canvas) xminmax yminmax size zoom)
+					 thickness)
+	  (draw-frame! canvas)
+	  (print-canvas-with-labels canvas :title title
+									   :xlabel xlabel
+									   :ylabel ylabel
+									   :xlim xlim
+									   :ylim ylim
+									   :fmt-stream (if as-string
+													   (make-array 0
+																   :element-type 'character
+																   :fill-pointer 0)
+													   t)))))
+
+(defun scatter-multiple (data-list &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend :blocks))
+  "Plot multiple sets of data as a combined scatterplot.
+Setting *colors-enabled* to t is recommended.
+
+DATA-LIST: a list of Nx2 list of points. (MxNx2)
+
+TITLE: a string, printed above the plot.
+XLABEL and YLABEL: strings describing the axes, printed next to the axes.
+SIZE: plot size in characters as a list '(x y).
+THICKNESS: circle size.
+ZOOM: how much to scale the plot as a list '(x y).
+AS-STRING: if t, return plot as a string instead of printing.
+BACKEND: which rendering backend to use.
+
+Examples:
+(scatter-multiple '(((1 2) (2 6) (3 3) (4 4))
+                    ((2 4) (4 3))) :backend :braille)
+=>
+6.5⡏⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢹
+   ⡇⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+   ⡇⠀⠀⠀⠀⠀⠀⠈⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+   ⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+   ⡇⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⢸
+   ⡇⠀⠀⠀⠀⠀⠀⠈⠋⠀⠀⠀⠀⠀⠀⠈⠋⠀⠀⢸
+   ⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⡦⠀⠀⠠⡦⠀⠀⢸
+   ⡇⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+   ⡇⠀⠀⠙⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+1.5⣇⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣸
+   0.625          4.375
+"
+										; todo add flag to toggle drawing axes
+  (let ((canvas (create-canvas (first size) (second size) backend)))
+	(multiple-value-bind (xminmax yminmax xlim ylim) (plot-scale-calculations
+													  (flatten-1 data-list) zoom)
+	  (loop for data in data-list
+			for color in +4bit-colormap+
+			do (draw-scatter! canvas
+							  (scale-points data
+											(cell-resolution canvas)
+											xminmax yminmax size zoom)
+							  thickness :color color))
+	  (draw-frame! canvas)
+	  (print-canvas-with-labels canvas :title title
+									   :xlabel xlabel
+									   :ylabel ylabel
+									   :xlim xlim
+									   :ylim ylim
+									   :fmt-stream (if as-string
+													   (make-array 0
+																   :element-type 'character
+																   :fill-pointer 0)
+													   t)))))
