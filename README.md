@@ -117,4 +117,4 @@ You can use the `:as-string` key to get the output as a string instead of printi
 ### Acknowledgement
 Inspired by [UnicodePlots.jl](https://github.com/JuliaPlots/UnicodePlots.jl).
 
-Also check out [cl-spark](https://github.com/tkych/cl-spark)!
+Also check out [cl-spark](https://github.com/tkych/cl-spark) and [hbook](https://github.com/eigenhombre/hbook)!
