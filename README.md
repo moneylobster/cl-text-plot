@@ -118,3 +118,5 @@ You can use the `:as-string` key to get the output as a string instead of printi
 Inspired by [UnicodePlots.jl](https://github.com/JuliaPlots/UnicodePlots.jl).
 
 Also check out [cl-spark](https://github.com/tkych/cl-spark) and [hbook](https://github.com/eigenhombre/hbook)!
+
+[vgplot](https://github.com/volkers/vgplot) can also generate text plots if you run `(vgplot:format-plot t "set terminal dumb")`.
