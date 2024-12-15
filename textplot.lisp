@@ -1,6 +1,8 @@
 ;;;; implements a unicode canvas and plotting
 ;; TODOs
 ;; legend
+;; make colormap customizable
+;; axes
 
 (defpackage :textplot
 			(:use :common-lisp)
@@ -350,14 +352,16 @@ primitives list index"))
 
 (defun set-color! (canvas x y color)
   "Set the canvas cell that contains the pixel X,Y to be of the color code COLOR. Modifies CANVAS."
-  (let ((canvas-data (canvas-colors canvas))
+    (let ((canvas-data (canvas-colors canvas))
 		(cell-resolution (cell-resolution canvas)))
 	(if (and (>= x 0)
 			 (>= y 0)
 			 (< x (* (first cell-resolution) (array-dimension canvas-data 1)))
 			 (< y (* (second cell-resolution) (array-dimension canvas-data 0))))
 		(multiple-value-bind (gridx blockx) (truncate x (first cell-resolution))
+		  (declare (ignore blockx))
 		  (multiple-value-bind (gridy blocky) (truncate y (second cell-resolution))
+			(declare (ignore blocky))
 			(setf (aref canvas-data gridy gridx) color))))))
 		  
 							 
@@ -513,7 +517,7 @@ Examples:
 	(dotimes (lineno linecount fmt-stream)
 	  (cond ((= (1+ lineno) titlecount)
 			 (if title (format t "~v,@T~A~%" titlestart title))) ; title
-			((< titlecount (1+ lineno) (+ titlecount canv-ylen 1))
+			((< titlecount (1+ lineno) (+ titlecount canv-ylen 1))
 			 (if (= lineno (truncate (/ canv-ylen 2))) ; ylabel
 				 (if ylabel (format fmt-stream "~A" ylabel))
 				 (format fmt-stream "~v,@T" ylablen))
