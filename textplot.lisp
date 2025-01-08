@@ -5,14 +5,15 @@
 ;; axes
 
 (defpackage :textplot
-			(:use :common-lisp)
-			(:export
-			 #:plot
-			 #:plot-fun
-			 #:plot-multiple
-			 #:scatter
-			 #:scatter-multiple
-			 #:*colors-enabled*))
+  (:use :common-lisp
+		:cl-unicode)
+  (:export
+   #:plot
+   #:plot-fun
+   #:plot-multiple
+   #:scatter
+   #:scatter-multiple
+   #:*colors-enabled*))
 
 (in-package :textplot)
 
@@ -197,15 +198,16 @@ Actual resolution is x*CELLRESX x y*CELLRESY"
 (defclass braille-canvas (canvas)
   ()
   (:default-initargs
-   :primitives '(#\BRAILLE_PATTERN_BLANK
-				 #\BRAILLE_PATTERN_DOTS-1
-				 #\BRAILLE_PATTERN_DOTS-2
-				 #\BRAILLE_PATTERN_DOTS-3
-				 #\BRAILLE_PATTERN_DOTS-4
-				 #\BRAILLE_PATTERN_DOTS-5
-				 #\BRAILLE_PATTERN_DOTS-6
-				 #\BRAILLE_PATTERN_DOTS-7
-				 #\BRAILLE_PATTERN_DOTS-8)
+   :primitives (list
+				(character-named "BRAILLE_PATTERN_BLANK")
+				(character-named "BRAILLE_PATTERN_DOTS-1")
+				(character-named "BRAILLE_PATTERN_DOTS-2")
+				(character-named "BRAILLE_PATTERN_DOTS-3")
+				(character-named "BRAILLE_PATTERN_DOTS-4")
+				(character-named "BRAILLE_PATTERN_DOTS-5")
+				(character-named "BRAILLE_PATTERN_DOTS-6")
+				(character-named "BRAILLE_PATTERN_DOTS-7")
+				(character-named "BRAILLE_PATTERN_DOTS-8"))
    :cell-resolution '(2 4))
   (:documentation "A canvas using braille characters.
 For the primitives, 0 is empty, 1-8 are as follows:
@@ -217,70 +219,71 @@ For the primitives, 0 is empty, 1-8 are as follows:
 (defclass blocks-canvas (canvas)
   ()
   (:default-initargs
-   :primitives '(#\SPACE
-				 #\BLOCK_SEXTANT-1
-				 #\BLOCK_SEXTANT-2
-				 #\BLOCK_SEXTANT-12
-				 #\BLOCK_SEXTANT-3
-				 #\BLOCK_SEXTANT-13
-				 #\BLOCK_SEXTANT-23
-				 #\BLOCK_SEXTANT-123
-				 #\BLOCK_SEXTANT-4
-				 #\BLOCK_SEXTANT-14
-				 #\BLOCK_SEXTANT-24
-				 #\BLOCK_SEXTANT-124
-				 #\BLOCK_SEXTANT-34
-				 #\BLOCK_SEXTANT-134
-				 #\BLOCK_SEXTANT-234
-				 #\BLOCK_SEXTANT-1234
-				 #\BLOCK_SEXTANT-5
-				 #\BLOCK_SEXTANT-15
-				 #\BLOCK_SEXTANT-25
-				 #\BLOCK_SEXTANT-125
-				 #\BLOCK_SEXTANT-35
-				 #\LEFT_HALF_BLOCK
-				 #\BLOCK_SEXTANT-235
-				 #\BLOCK_SEXTANT-1235
-				 #\BLOCK_SEXTANT-45
-				 #\BLOCK_SEXTANT-145
-				 #\BLOCK_SEXTANT-245
-				 #\BLOCK_SEXTANT-1245
-				 #\BLOCK_SEXTANT-345
-				 #\BLOCK_SEXTANT-1345
-				 #\BLOCK_SEXTANT-2345
-				 #\BLOCK_SEXTANT-12345
-				 #\BLOCK_SEXTANT-6
-				 #\BLOCK_SEXTANT-16
-				 #\BLOCK_SEXTANT-26
-				 #\BLOCK_SEXTANT-126
-				 #\BLOCK_SEXTANT-36
-				 #\BLOCK_SEXTANT-136
-				 #\BLOCK_SEXTANT-236
-				 #\BLOCK_SEXTANT-1236
-				 #\BLOCK_SEXTANT-46
-				 #\BLOCK_SEXTANT-146
-				 #\RIGHT_HALF_BLOCK
-				 #\BLOCK_SEXTANT-1246
-				 #\BLOCK_SEXTANT-346
-				 #\BLOCK_SEXTANT-1346
-				 #\BLOCK_SEXTANT-2346
-				 #\BLOCK_SEXTANT-12346
-				 #\BLOCK_SEXTANT-56
-				 #\BLOCK_SEXTANT-156
-				 #\BLOCK_SEXTANT-256
-				 #\BLOCK_SEXTANT-1256
-				 #\BLOCK_SEXTANT-356
-				 #\BLOCK_SEXTANT-1356
-				 #\BLOCK_SEXTANT-2356
-				 #\BLOCK_SEXTANT-12356
-				 #\BLOCK_SEXTANT-456
-				 #\BLOCK_SEXTANT-1456
-				 #\BLOCK_SEXTANT-2456
-				 #\BLOCK_SEXTANT-12456
-				 #\BLOCK_SEXTANT-3456
-				 #\BLOCK_SEXTANT-13456
-				 #\BLOCK_SEXTANT-23456
-				 #\FULL_BLOCK)
+   :primitives (list
+				(character-named "SPACE")
+				(character-named "BLOCK_SEXTANT-1")
+				(character-named "BLOCK_SEXTANT-2")
+				(character-named "BLOCK_SEXTANT-12")
+				(character-named "BLOCK_SEXTANT-3")
+				(character-named "BLOCK_SEXTANT-13")
+				(character-named "BLOCK_SEXTANT-23")
+				(character-named "BLOCK_SEXTANT-123")
+				(character-named "BLOCK_SEXTANT-4")
+				(character-named "BLOCK_SEXTANT-14")
+				(character-named "BLOCK_SEXTANT-24")
+				(character-named "BLOCK_SEXTANT-124")
+				(character-named "BLOCK_SEXTANT-34")
+				(character-named "BLOCK_SEXTANT-134")
+				(character-named "BLOCK_SEXTANT-234")
+				(character-named "BLOCK_SEXTANT-1234")
+				(character-named "BLOCK_SEXTANT-5")
+				(character-named "BLOCK_SEXTANT-15")
+				(character-named "BLOCK_SEXTANT-25")
+				(character-named "BLOCK_SEXTANT-125")
+				(character-named "BLOCK_SEXTANT-35")
+				(character-named "LEFT_HALF_BLOCK")
+				(character-named "BLOCK_SEXTANT-235")
+				(character-named "BLOCK_SEXTANT-1235")
+				(character-named "BLOCK_SEXTANT-45")
+				(character-named "BLOCK_SEXTANT-145")
+				(character-named "BLOCK_SEXTANT-245")
+				(character-named "BLOCK_SEXTANT-1245")
+				(character-named "BLOCK_SEXTANT-345")
+				(character-named "BLOCK_SEXTANT-1345")
+				(character-named "BLOCK_SEXTANT-2345")
+				(character-named "BLOCK_SEXTANT-12345")
+				(character-named "BLOCK_SEXTANT-6")
+				(character-named "BLOCK_SEXTANT-16")
+				(character-named "BLOCK_SEXTANT-26")
+				(character-named "BLOCK_SEXTANT-126")
+				(character-named "BLOCK_SEXTANT-36")
+				(character-named "BLOCK_SEXTANT-136")
+				(character-named "BLOCK_SEXTANT-236")
+				(character-named "BLOCK_SEXTANT-1236")
+				(character-named "BLOCK_SEXTANT-46")
+				(character-named "BLOCK_SEXTANT-146")
+				(character-named "RIGHT_HALF_BLOCK")
+				(character-named "BLOCK_SEXTANT-1246")
+				(character-named "BLOCK_SEXTANT-346")
+				(character-named "BLOCK_SEXTANT-1346")
+				(character-named "BLOCK_SEXTANT-2346")
+				(character-named "BLOCK_SEXTANT-12346")
+				(character-named "BLOCK_SEXTANT-56")
+				(character-named "BLOCK_SEXTANT-156")
+				(character-named "BLOCK_SEXTANT-256")
+				(character-named "BLOCK_SEXTANT-1256")
+				(character-named "BLOCK_SEXTANT-356")
+				(character-named "BLOCK_SEXTANT-1356")
+				(character-named "BLOCK_SEXTANT-2356")
+				(character-named "BLOCK_SEXTANT-12356")
+				(character-named "BLOCK_SEXTANT-456")
+				(character-named "BLOCK_SEXTANT-1456")
+				(character-named "BLOCK_SEXTANT-2456")
+				(character-named "BLOCK_SEXTANT-12456")
+				(character-named "BLOCK_SEXTANT-3456")
+				(character-named "BLOCK_SEXTANT-13456")
+				(character-named "BLOCK_SEXTANT-23456")
+				(character-named "FULL_BLOCK"))
    :cell-resolution '(2 3))
   (:documentation "A canvas using sextant block characters.
 1-6 are oriented as follows:
