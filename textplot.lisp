@@ -3,6 +3,9 @@
 ;; legend
 ;; make colormap customizable
 ;; axes
+;; give default vars for size etc
+;; smart plot function that dispatches to multiple if needed (and can take in arrays)
+;; maybe also change the underlying api to be more like other plot libs? where you create a canvas and such (to make it easier for custom plots later on)
 
 (defpackage :textplot
   (:use :common-lisp
@@ -163,7 +166,12 @@ Examples:
 =>hello in red"
   (format nil "~A[~Am~A~A[0m" #\Esc color string #\Esc))
 
-;; canvas backends
+;;; canvas backends
+
+;; To add a new canvas backend, create a canvas subclass (ideally
+;; subclassing `one-hot-canvas' or `different-representation-canvas')
+;; and see if there are applicable `add-cells' and `xy-to-cell-index'
+;; methods. Then add it as an option to `create-canvas'.
 (defclass canvas ()
   ((primitives
 	:initarg :primitives
@@ -195,7 +203,40 @@ Actual resolution is x*CELLRESX x y*CELLRESY"
   (setf (canvas-colors c)
 		(make-array (reverse (canvas-size c)) :initial-element 0)))
 
-(defclass braille-canvas (canvas)
+(defclass one-hot-canvas (canvas)
+  ()
+  (:documentation "A canvas whose pixels are represented in one-hot form in binary.
+This means when multiple pixels need to be turned on at the cell, we
+can obtain the combined character by bit operations.
+
+The primitives slot contains only the representation for singular
+pixels, which will then be combined to form the needed character.
+
+Example:
+
+:primitives '(blank one two ...)
+
+Blank:   110000
+One:     110001
+Two:     110010
+One+Two: 110011"))
+
+(defclass different-representations-canvas (canvas)
+  ()
+  (:documentation "A canvas whose pixels can have any form in binary. Pixels being added
+does not necessarily imply any relation in the binary
+representation. This means that when multiple pixels need to be turned
+on at the cell, we look to the primitives slot and get the appropriate
+character for the pixel combination.
+
+The primitives slot contains all possible pixel combinations, counting
+up in binary style.
+
+Example:
+
+:primitives '(blank one two one+two three one+three ...)"))
+
+(defclass braille-canvas (one-hot-canvas)
   ()
   (:default-initargs
    :primitives (list
@@ -216,7 +257,7 @@ For the primitives, 0 is empty, 1-8 are as follows:
 3 6
 7 8"))
 
-(defclass blocks-canvas (canvas)
+(defclass blocks-canvas (different-representations-canvas)
   ()
   (:default-initargs
    :primitives (list
@@ -291,19 +332,46 @@ For the primitives, 0 is empty, 1-8 are as follows:
 3 4
 5 6"))
 
+(defclass blocks4-canvas (different-representations-canvas)
+  ()
+  (:default-initargs
+   :primitives (list
+				(character-named "SPACE")
+				(character-named "QUADRANT_UPPER_LEFT")
+				(character-named "QUADRANT_UPPER_RIGHT")
+				(character-named "UPPER_HALF_BLOCK")
+				(character-named "QUADRANT_LOWER_LEFT")
+				(character-named "LEFT_HALF_BLOCK")
+				(character-named "QUADRANT_UPPER_RIGHT_AND_LOWER_LEFT")
+				(character-named "QUADRANT_UPPER_LEFT_AND_UPPER_RIGHT_AND_LOWER_LEFT")
+				(character-named "QUADRANT_LOWER_RIGHT")
+				(character-named "QUADRANT_UPPER_LEFT_AND_LOWER_RIGHT")
+				(character-named "RIGHT_HALF_BLOCK")
+				(character-named "QUADRANT_UPPER_LEFT_AND_UPPER_RIGHT_AND_LOWER_RIGHT")
+				(character-named "LOWER_HALF_BLOCK")
+				(character-named "QUADRANT_UPPER_LEFT_AND_LOWER_LEFT_AND_LOWER_RIGHT")
+				(character-named "QUADRANT_UPPER_RIGHT_AND_LOWER_LEFT_AND_LOWER_RIGHT")
+				(character-named "FULL_BLOCK"))
+   :cell-resolution '(2 2))
+  (:documentation "A canvas using quadrant block characters.
+1-4 are oriented as follows:
+1 2
+3 4"))
+
 (defun create-canvas (x y &optional (backend :blocks))
   "Create a canvas of size x y using BACKEND.
 BACKEND can be one of :braille or :blocks.
 Actual resolution is [x y].*cell-resolution of the backend."
   (make-instance (ccase backend
 				   (:braille 'braille-canvas)
-				   (:blocks 'blocks-canvas))
+				   (:blocks 'blocks-canvas)
+				   (:blocks4 'blocks4-canvas))
 				 :canvas-size (list x y)))
 
 (defgeneric add-cells (canvas &rest args))
 
-(defmethod add-cells ((canvas braille-canvas) &rest args)
-    "add braille characters
+(defmethod add-cells ((canvas one-hot-canvas) &rest args)
+    "add one-hot characters (eg. braille)
 
 Examples:
   (let ((c (create-canvas 1 1 :braille)))
@@ -314,8 +382,8 @@ Examples:
 "
   (code-char (apply #'logior (mapcar #'char-code args))))
 
-(defmethod add-cells ((canvas blocks-canvas) &rest args)
-  "add block characters
+(defmethod add-cells ((canvas different-representations-canvas) &rest args)
+  "add different-representation characters
 
 Examples:
 (add-cells (create-canvas 1 1 :blocks) #\BLOCK_SEXTANT-1 #\BLOCK_SEXTANT-35)
@@ -329,10 +397,11 @@ Examples:
 primitives list index"))
 
 (defmethod xy-to-cell-index ((canvas braille-canvas) x y)
+  "Braille needs its' own indexing function since the indexing is inconsistent."
   (nth (+ x (* 2 y)) '(1 4 2 5 3 6 7 8)))
 
-(defmethod xy-to-cell-index ((canvas blocks-canvas) x y)
-  (ash #b000001 (+ x (* 2 y))))
+(defmethod xy-to-cell-index ((canvas different-representations-canvas) x y)
+  (ash #b000001 (+ x (* (first (cell-resolution canvas)) y))))
 
 (defun turn-on! (canvas x y)
   "Turn on the pixel located at X,Y. Modifies CANVAS."

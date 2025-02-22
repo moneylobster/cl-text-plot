@@ -6,8 +6,9 @@ Can be loaded as "textplot" via Ultralisp. `cl-unicode` is a dependency.
 ### Usage
 For some reason the plots don't show up nicely on Github's markdown renderer, so the outputs look wonkier than they actually are.
 
-There are two backends:
-* `:blocks`  uses characters from the "Symbols for Legacy Computing" set.
+There are three backends:
+* `:blocks`  uses the 2x3 block characters from the "Symbols for Legacy Computing" set.
+* `:blocks4`  uses the 2x2 block characters.
 * `:braille` uses Braille dots. This is intended as a fallback option in case your font of choice cannot render the `:blocks` backend.
 
 You can use the `:as-string` key to get the output as a string instead of printing to the console.
