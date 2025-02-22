@@ -16,13 +16,17 @@
    #:plot-multiple
    #:scatter
    #:scatter-multiple
-   #:*colors-enabled*))
+   #:*colors-enabled*
+   #:*default-backend*))
 
 (in-package :textplot)
 
 (defvar *colors-enabled* nil
   "If you want your plots to be printed with color using the ansi color
 codes, set this to t. Your terminal must support ansi color codes.")
+
+(defvar *default-backend* :blocks4
+  "Which canvas backend to use by default. See README.md or `create-canvas' for choices.")
 
 ;;; Utility functions
 (defun 2d+ (v1 v2)
@@ -358,7 +362,7 @@ For the primitives, 0 is empty, 1-8 are as follows:
 1 2
 3 4"))
 
-(defun create-canvas (x y &optional (backend :blocks))
+(defun create-canvas (x y &optional (backend *default-backend*))
   "Create a canvas of size x y using BACKEND.
 BACKEND can be one of :braille or :blocks.
 Actual resolution is [x y].*cell-resolution of the backend."
@@ -679,7 +683,7 @@ corresponding pixel on the canvas."
 				 xminmax yminmax)
 	 (* yres (second size)))))
 
-(defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend :blocks))
+(defun plot (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend *default-backend*))
   "Plot data as a line chart.
 
 DATA: an Nx2 list of points.
@@ -726,7 +730,7 @@ Examples:
 																   :fill-pointer 0)
 													   t)))))
 
-(defun plot-fun (fn min max &optional (step 1) (backend :blocks))
+(defun plot-fun (fn min max &optional (step 1) (backend *default-backend*))
   "Plot the single-input function FN over the given interval.
 
 Examples:
@@ -752,7 +756,7 @@ Examples:
 		:xlabel "x"
 		:backend backend))
 
-(defun plot-multiple (data-list &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend :blocks))
+(defun plot-multiple (data-list &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(1 1)) (as-string nil) (backend *default-backend*))
   "Plot multiple lines of data as a combined chart.
 Setting *colors-enabled* to t is recommended.
 
@@ -805,7 +809,7 @@ Examples:
 																   :fill-pointer 0)
 													   t)))))
 
-(defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend :blocks))
+(defun scatter (data &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend *default-backend*))
   "Plot data as a scatterplot.
 
 DATA: an Nx2 list of points.
@@ -851,7 +855,7 @@ Examples:
 																   :fill-pointer 0)
 													   t)))))
 
-(defun scatter-multiple (data-list &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend :blocks))
+(defun scatter-multiple (data-list &key title xlabel ylabel (size '(20 10)) (thickness 1) (zoom '(0.8 0.8)) (as-string nil) (backend *default-backend*))
   "Plot multiple sets of data as a combined scatterplot.
 Setting *colors-enabled* to t is recommended.
 

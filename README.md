@@ -11,7 +11,7 @@ There are three backends:
 * `:blocks4`  uses the 2x2 block characters.
 * `:braille` uses Braille dots. This is intended as a fallback option in case your font of choice cannot render the `:blocks` backend.
 
-You can use the `:as-string` key to get the output as a string instead of printing to the console.
+You can use the `:as-string` key to get the output as a string instead of printing to the console. `*colors-enabled*` and `*default-backend*` are configurable variables.
 
 #### Normal Plotting
 ```lisp
