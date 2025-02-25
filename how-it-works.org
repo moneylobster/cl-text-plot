@@ -16,12 +16,12 @@ The current plotting functions all work by drawing rectangles (lines are very th
 We don't need to check whether every pixel on the canvas falls within the shape we drew, so we ease our work by not checking any pixel which doesn't fall within the bounding box of the shape:
 #+begin_export ascii
   +-------/
-  |....../|
-  |...../.|
-  |..../..|
-  |.../...|
-  |../....|
-  |./.....|
-  |/......|
-  /-------+
+  |......//
+  |.....//|
+  |....//.|
+  |...//..|
+  |..//...|
+  |.//....|
+  |//.....|
+  //------+
 #+end_export
