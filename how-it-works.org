@@ -1,0 +1,27 @@
+#+TITLE:How cl-textplot works
+* Canvases
+To be able to draw lines as text, we treat a rectangular region of characters as if it's a dot-matrix display. With the ~:blocks4~ backend for example, each character is treated as 4 pixels in a 2x2 configuration:
+
+▘ ▀ ▛ █
+
+We want to be able to turn each individual pixel on and off, so we have an ~add-cells~ function that lets us calculate the resultant character when multiple pixels are turned on:
+#+begin_export ascii
+▘ + ▗ = ▚
+#+end_export
+
+This is the majority of what a backend is expected to do. Each backend defines how many pixels are in a character, how they are numbered, and which characters to use for when which pixels are turned on.
+* Drawing on the canvases
+The current plotting functions all work by drawing rectangles (lines are very thin rectangles) or circles on these canvases. There are collision checking functions implemented for rectangles and circles, both of which calculate whether a given point is inside or outside a given rectangle or circle. To draw a shape, we turn on all the pixels that end up inside the shape according to this function.
+** Collision-checking
+We don't need to check whether every pixel on the canvas falls within the shape we drew, so we ease our work by not checking any pixel which doesn't fall within the bounding box of the shape:
+#+begin_export ascii
+  +-------/
+  |....../|
+  |...../.|
+  |..../..|
+  |.../...|
+  |../....|
+  |./.....|
+  |/......|
+  /-------+
+#+end_export
