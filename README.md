@@ -1,7 +1,7 @@
-## cl-text-plot
+## cl-textplot
 A plotting library for Common Lisp that prints plots on the REPL using Unicode characters. Code quality/style may not be the best. Should work with SBCL and CCL.
 
-Can be loaded as "textplot" via Ultralisp. `cl-unicode` is a dependency.
+Can be loaded as `textplot` via Ultralisp. `cl-unicode` is a dependency.
 
 ### Usage
 For some reason the plots don't show up nicely on Github's markdown renderer, so the outputs look wonkier than they actually are.
