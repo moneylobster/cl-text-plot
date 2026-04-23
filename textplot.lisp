@@ -156,7 +156,7 @@ Examples
 (defconstant +bright-magenta+ 95)
 (defconstant +bright-cyan+ 96)
 (defconstant +bright-white+ 97)
-(defconstant +4bit-colormap+ (list +red+ +green+ +yellow+
+(defparameter +4bit-colormap+ (list +red+ +green+ +yellow+
 								   +blue+ +magenta+ +cyan+
 								   +bright-red+ +bright-green+
 								   +bright-yellow+ +bright-blue+
